@@ -18,6 +18,7 @@ import { notify } from './utils/helpers'
 import message from './utils/messages'
 import moveDate from './utils/move'
 import VIEWS from './Views'
+import IsolatedOverlayManager from './IsolatedOverlayManager'
 
 import defaults from 'lodash/defaults'
 import mapValues from 'lodash/mapValues'
@@ -1099,6 +1100,7 @@ class Calendar extends React.Component {
           doShowMoreDrillDown={doShowMoreDrillDown}
           resourceGroupingLayout={resourceGroupingLayout}
         />
+        <IsolatedOverlayManager selected={this.props.selected} />
       </div>
     )
   }

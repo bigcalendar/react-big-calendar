@@ -1,9 +1,9 @@
-import React, { useLayoutEffect } from 'react'
-import PropTypes from 'prop-types'
 import getOffset from 'dom-helpers/offset'
+import PropTypes from 'prop-types'
+import React, { useLayoutEffect } from 'react'
 
-import useClickOutside from './hooks/useClickOutside'
 import EventCell from './EventCell'
+import useClickOutside from './hooks/useClickOutside'
 import { isSelected } from './utils/selection'
 
 /**

@@ -1,20 +1,17 @@
-import React, { createRef } from 'react'
-import PropTypes from 'prop-types'
 import clsx from 'clsx'
+import PropTypes from 'prop-types'
+import React, { createRef } from 'react'
 
 import chunk from 'lodash/chunk'
 
+import * as animationFrame from 'dom-helpers/animationFrame'
+import getPosition from 'dom-helpers/position'
 import { navigate, views } from './utils/constants'
 import { notify } from './utils/helpers'
-import getPosition from 'dom-helpers/position'
-import * as animationFrame from 'dom-helpers/animationFrame'
 
-/* import Popup from './Popup'
-import Overlay from 'react-overlays/Overlay' */
-import PopOverlay from './PopOverlay'
 import DateContentRow from './DateContentRow'
-import Header from './Header'
 import DateHeader from './DateHeader'
+import Header from './Header'
 
 import { inRange, sortWeekEvents } from './utils/eventLevels'
 
@@ -94,7 +91,6 @@ class MonthView extends React.Component {
           {this.renderHeaders(weeks[0])}
         </div>
         {weeks.map(this.renderWeek)}
-        {this.props.popup && this.renderOverlay()}
       </div>
     )
   }
@@ -115,7 +111,7 @@ class MonthView extends React.Component {
     } = this.props
 
     const { needLimitMeasure, rowLimit } = this.state
-
+    
     // let's not mutate props
     const weeksEvents = eventsForWeek(
       [...events],
@@ -205,72 +201,6 @@ class MonthView extends React.Component {
     ))
   }
 
-  renderOverlay() {
-    let overlay = this.state?.overlay ?? {}
-    let {
-      accessors,
-      localizer,
-      components,
-      getters,
-      selected,
-      popupOffset,
-      handleDragStart,
-    } = this.props
-
-    const onHide = () => this.setState({ overlay: null })
-
-    return (
-      <PopOverlay
-        overlay={overlay}
-        accessors={accessors}
-        localizer={localizer}
-        components={components}
-        getters={getters}
-        selected={selected}
-        popupOffset={popupOffset}
-        ref={this.containerRef}
-        handleKeyPressEvent={this.handleKeyPressEvent}
-        handleSelectEvent={this.handleSelectEvent}
-        handleDoubleClickEvent={this.handleDoubleClickEvent}
-        handleDragStart={handleDragStart}
-        show={!!overlay.position}
-        overlayDisplay={this.overlayDisplay}
-        onHide={onHide}
-      />
-    )
-
-    /* return (
-      <Overlay
-        rootClose
-        placement="bottom"
-        show={!!overlay.position}
-        onHide={() => this.setState({ overlay: null })}
-        target={() => overlay.target}
-      >
-        {({ props }) => (
-          <Popup
-            {...props}
-            popupOffset={popupOffset}
-            accessors={accessors}
-            getters={getters}
-            selected={selected}
-            components={components}
-            localizer={localizer}
-            position={overlay.position}
-            show={this.overlayDisplay}
-            events={overlay.events}
-            slotStart={overlay.date}
-            slotEnd={overlay.end}
-            onSelect={this.handleSelectEvent}
-            onDoubleClick={this.handleDoubleClickEvent}
-            onKeyPress={this.handleKeyPressEvent}
-            handleDragStart={this.props.handleDragStart}
-          />
-        )}
-      </Overlay>
-    ) */
-  }
-
   measureRowLimit() {
     this.setState({
       needLimitMeasure: false,
@@ -313,6 +243,12 @@ class MonthView extends React.Component {
       onShowMore,
       getDrilldownView,
       doShowMoreDrillDown,
+      accessors,
+      localizer,
+      components,
+      getters,
+      selected,
+      handleDragStart,
     } = this.props
     //cancel any pending selections so only the event click goes through.
     this.clearSelection()
@@ -320,20 +256,35 @@ class MonthView extends React.Component {
     if (popup) {
       let position = getPosition(cell, this.containerRef.current)
 
-      this.setState({
-        overlay: { date, events, position, target },
-      })
+      if (window.showCalendarOverlay) {
+        window.showCalendarOverlay({
+          date,
+          events,
+          position,
+          target,
+          accessors,
+          localizer,
+          components,
+          getters,
+          selected,
+          onSelect: this.handleSelectEvent,
+          onDoubleClick: this.handleDoubleClickEvent,
+          onKeyPress: this.handleKeyPressEvent,
+          handleDragStart,
+          containerRef: this.containerRef,
+          popupOffset: this.props.popupOffset,
+          onHide: () => {
+            if (window.hideCalendarOverlay) {
+              window.hideCalendarOverlay()
+            }
+          }
+        })
+      }
     } else if (doShowMoreDrillDown) {
       notify(onDrillDown, [date, getDrilldownView(date) || views.DAY])
     }
 
     notify(onShowMore, [events, date, slot])
-  }
-
-  overlayDisplay = () => {
-    this.setState({
-      overlay: null,
-    })
   }
 
   selectDates(slotInfo) {
