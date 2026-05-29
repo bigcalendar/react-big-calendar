@@ -84,6 +84,9 @@ export function merge(date, time) {
 
   if (time == null) time = new Date()
   if (date == null) date = new Date()
+  
+  if (isNaN(time.getTime())) time = new Date()
+  if (isNaN(date.getTime())) date = new Date()
 
   date = dates.startOf(date, 'day')
   date = dates.hours(date, dates.hours(time))
