@@ -86,9 +86,14 @@ class EventWrapper extends React.Component {
       ? !!get(event, draggableAccessor)
       : true
 
-    /* Event is not draggable, no need to wrap it */
+    /* Event is not draggable, but we need to wrap it with default element listeners functions
+     * so React can bind event listeners before Selection events are initialized
+     */
     if (!isDraggable) {
-      return children
+      return React.cloneElement(children, {
+        onMouseDown: () => {},
+        onTouchStart: () => {},
+      })
     }
 
     /*
