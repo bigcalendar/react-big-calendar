@@ -72,6 +72,152 @@ describe('Selection — constructor', () => {
   })
 })
 
+// ── Mouse/touch input switching (#2817) ──────────────────────────────────────
+describe('Selection — mouse and touch input', () => {
+  let originalElementFromPoint
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+    originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = jest.fn(() => container)
+    selection = makeSelection({ longPressThreshold: 20 })
+    selection.container = () => container
+  })
+
+  afterEach(() => {
+    document.elementFromPoint = originalElementFromPoint
+    jest.useRealTimers()
+  })
+
+  function mouse(type, x = 40, y = 40) {
+    container.dispatchEvent(new MouseEvent(type, {
+      bubbles: true, cancelable: true, clientX: x, clientY: y,
+    }))
+  }
+
+  function touch(type, x = 40, y = 40) {
+    const point = { clientX: x, clientY: y, pageX: x, pageY: y }
+    const event = new Event(type, { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'touches', {
+      value: type === 'touchstart' || type === 'touchmove' ? [point] : [],
+    })
+    Object.defineProperty(event, 'changedTouches', { value: [point] })
+    container.dispatchEvent(event)
+  }
+
+  test('accepts touch after mouse selection', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    mouse('mousedown')
+    mouse('mouseup')
+    touch('touchstart')
+    jest.advanceTimersByTime(20)
+    touch('touchend')
+
+    expect(beforeSelect).toHaveBeenCalledTimes(2)
+    expect(beforeSelect.mock.calls[0][0].isTouch).toBe(false)
+    expect(beforeSelect.mock.calls[1][0].isTouch).toBe(true)
+  })
+
+  test('accepts mouse after touch selection', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    touch('touchstart')
+    jest.advanceTimersByTime(20)
+    touch('touchend')
+    jest.advanceTimersByTime(501)
+    mouse('mousedown')
+    mouse('mouseup')
+
+    expect(beforeSelect).toHaveBeenCalledTimes(2)
+    expect(beforeSelect.mock.calls[0][0].isTouch).toBe(true)
+    expect(beforeSelect.mock.calls[1][0].isTouch).toBe(false)
+  })
+
+  test('ignores compatibility mouse events following a touch', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    touch('touchstart')
+    jest.advanceTimersByTime(20)
+    touch('touchend')
+    mouse('mousedown')
+    mouse('mouseup')
+
+    expect(beforeSelect).toHaveBeenCalledTimes(1)
+  })
+
+  test('allows immediate real mouse input away from the touch position', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    touch('touchstart')
+    jest.advanceTimersByTime(20)
+    touch('touchend')
+    mouse('mousedown', 100, 100)
+    mouse('mouseup', 100, 100)
+
+    expect(beforeSelect).toHaveBeenCalledTimes(2)
+  })
+
+  test('allows real mouse input at the same spot when identified as non-touch', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    touch('touchstart')
+    jest.advanceTimersByTime(20)
+    touch('touchend')
+    const event = new MouseEvent('mousedown', {
+      bubbles: true, cancelable: true, clientX: 40, clientY: 40,
+    })
+    Object.defineProperty(event, 'sourceCapabilities', {
+      value: { firesTouchEvents: false },
+    })
+    container.dispatchEvent(event)
+    mouse('mouseup')
+
+    expect(beforeSelect).toHaveBeenCalledTimes(2)
+  })
+
+  test('ignores touch-generated mouse events identified by the browser', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    const event = new MouseEvent('mousedown', {
+      bubbles: true, cancelable: true, clientX: 40, clientY: 40,
+    })
+    Object.defineProperty(event, 'sourceCapabilities', {
+      value: { firesTouchEvents: true },
+    })
+    container.dispatchEvent(event)
+    mouse('mouseup')
+
+    expect(beforeSelect).not.toHaveBeenCalled()
+  })
+
+  test('cancels a pending long press on touchcancel', () => {
+    const beforeSelect = jest.fn()
+    selection.on('beforeSelect', beforeSelect)
+
+    touch('touchstart')
+    touch('touchcancel')
+    jest.advanceTimersByTime(30)
+
+    expect(beforeSelect).not.toHaveBeenCalled()
+  })
+
+  test('teardown removes the long-press listener and its pending timer', () => {
+    touch('touchstart')
+    selection.teardown()
+    expect(jest.getTimerCount()).toBe(0)
+
+    touch('touchstart')
+    expect(jest.getTimerCount()).toBe(0)
+  })
+})
+
 // ── on / emit ─────────────────────────────────────────────────────────────────
 describe('Selection — on / emit', () => {
   beforeEach(() => { selection = makeSelection() })

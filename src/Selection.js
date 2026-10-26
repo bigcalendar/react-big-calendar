@@ -154,13 +154,18 @@ class Selection {
     let timer = null
     let removeTouchMoveListener = null
     let removeTouchEndListener = null
+    let removeTouchCancelListener = null
     const handleTouchStart = (initialEvent) => {
+      cleanup()
       timer = setTimeout(() => {
         cleanup()
         handler(initialEvent)
       }, this.longPressThreshold)
       removeTouchMoveListener = addEventListener('touchmove', () => cleanup())
       removeTouchEndListener = addEventListener('touchend', () => cleanup())
+      removeTouchCancelListener = addEventListener('touchcancel', () =>
+        cleanup()
+      )
     }
     const removeTouchStartListener = addEventListener(
       'touchstart',
@@ -176,10 +181,14 @@ class Selection {
       if (removeTouchEndListener) {
         removeTouchEndListener()
       }
+      if (removeTouchCancelListener) {
+        removeTouchCancelListener()
+      }
 
       timer = null
       removeTouchMoveListener = null
       removeTouchEndListener = null
+      removeTouchCancelListener = null
     }
 
     if (initialEvent) {
@@ -192,27 +201,56 @@ class Selection {
     }
   }
 
-  // Listen for mousedown and touchstart events. When one is received, disable the other and setup
-  // future event handling based on the type of event.
+  // Keep both input methods available for the lifetime of the selection.
+  // Touch browsers may emit compatibility mouse events after touchend; ignore
+  // those without preventing genuine mouse use elsewhere on the calendar.
   _addInitialEventListener() {
+    const syntheticMouseDelay = 500
+    const syntheticMouseTolerance = 25
+    let lastTouch = null
+
+    const recordTouch = (e) => {
+      const touch =
+        (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0])
+      if (touch) {
+        lastTouch = {
+          time: Date.now(),
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        }
+      }
+    }
+
     const removeMouseDownListener = addEventListener('mousedown', (e) => {
-      this._removeInitialEventListener()
+      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return
+
+      if (
+        !e.sourceCapabilities &&
+        lastTouch &&
+        Date.now() - lastTouch.time < syntheticMouseDelay &&
+        Math.abs(e.clientX - lastTouch.clientX) <= syntheticMouseTolerance &&
+        Math.abs(e.clientY - lastTouch.clientY) <= syntheticMouseTolerance
+      ) {
+        return
+      }
+
       this._handleInitialEvent(e)
-      this._removeInitialEventListener = addEventListener(
-        'mousedown',
-        this._handleInitialEvent
-      )
     })
-    const removeTouchStartListener = addEventListener('touchstart', (e) => {
-      this._removeInitialEventListener()
-      this._removeInitialEventListener = this._addLongPressListener(
-        this._handleInitialEvent,
-        e
-      )
-    })
+    const removeTouchStartRecorder = addEventListener('touchstart', recordTouch)
+    const removeTouchEndRecorder = addEventListener('touchend', recordTouch)
+    const removeTouchCancelRecorder = addEventListener(
+      'touchcancel',
+      recordTouch
+    )
+    const removeTouchStartListener = this._addLongPressListener(
+      this._handleInitialEvent
+    )
 
     this._removeInitialEventListener = () => {
       removeMouseDownListener()
+      removeTouchStartRecorder()
+      removeTouchEndRecorder()
+      removeTouchCancelRecorder()
       removeTouchStartListener()
     }
   }
