@@ -102,9 +102,13 @@ class WeekWrapper extends React.Component {
 
     let { start, end } = eventTimes(event, accessors, localizer)
 
-    const slot = getSlotAtX(bounds, point.x, rtl, slotMetrics.slots)
+    const slot = Math.max(
+      0,
+      Math.min(slotMetrics.slots - 1, getSlotAtX(bounds, point.x, rtl, slotMetrics.slots))
+    )
     const date = slotMetrics.getDateForSlot(slot)
-    const cursorInRow = pointInBox(bounds, point)
+    // Keep the preview at the nearest edge while the pointer is beside this row.
+    const cursorInRow = point.y >= bounds.top && point.y <= bounds.bottom
 
     if (direction === 'RIGHT') {
       if (cursorInRow) {
