@@ -14,9 +14,12 @@ class EventEndingRow extends React.Component {
   render() {
     let {
       segments,
+      components,
       slotMetrics: { slots },
     } = this.props
     let rowSegments = eventLevels(segments).levels[0]
+    // A custom showMore may already provide its own cell markup.
+    let showMoreRole = components?.showMore ? undefined : 'cell'
 
     let current = 1,
       lastEnd = 1,
@@ -43,7 +46,8 @@ class EventEndingRow extends React.Component {
               slots,
               1,
               key,
-              this.renderShowMore(segments, current)
+              this.renderShowMore(segments, current),
+              showMoreRole
             )
           )
           lastEnd = current = current + 1
@@ -76,7 +80,8 @@ class EventEndingRow extends React.Component {
             slots,
             1,
             key,
-            this.renderShowMore(segments, current)
+            this.renderShowMore(segments, current),
+            showMoreRole
           )
         )
         lastEnd = current = current + 1
