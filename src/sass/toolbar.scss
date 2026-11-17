@@ -45,6 +45,17 @@ $active-border: color.adjust($btn-border, $lightness: -12%);
         background-color: color.adjust($btn-bg, $lightness: -17%);
         border-color: color.adjust($btn-border, $lightness: -25%);
       }
+
+      @media (forced-colors: active) {
+        &,
+        &:hover,
+        &:focus {
+          forced-color-adjust: none;
+          color: HighlightText;
+          background-color: Highlight;
+          border-color: Highlight;
+        }
+      }
     }
 
     &:focus {
